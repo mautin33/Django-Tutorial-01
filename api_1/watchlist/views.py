@@ -117,11 +117,10 @@ class ReviewAV(APIView):
         validate_review_id = is_valid_uuid(review_id) if review_id else False
         
         if review_id and validate_review_id:
-            review = self.get_review(review_id)
+            review_qs = self.get_review(review_id)
 
-            if review is not None:
-                        
-                serializer = self.serializer_class(instance=review, data=request.data)
+            if review_qs is not None:
+                serializer = self.serializer_class(instance=review_qs, data=request.data)
                 
                 if serializer.is_valid():
                     serializer.save()
@@ -156,11 +155,7 @@ class ReviewAV(APIView):
         validate_id = is_valid_uuid(review_id) if review_id else False
 
         if review_id and validate_id:
-            
-            try:
-                review_qs = Review.objects.filter(is_active=True).get(id=review_id)
-            except Review.DoesNotExist:
-                return None 
+            review_qs = self.get_review(review_id)
                       
             if review_qs is not None:
                 review_qs.soft_delete()
@@ -345,7 +340,7 @@ class WatchListAV(APIView):
             }
             return Response(data=data)
 
-        movies_qs = WatchList.objects.filter(is_active=True).all()
+        movies_qs = WatchList.objects.filter(is_active=True).all().order_by("-created_at")
         if movies_qs.exists():
             movies = Paginator.paginate(request=request, queryset=movies_qs)
             serializer = self.serializer_class(instance=movies, many=True)
