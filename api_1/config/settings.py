@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Local Apps
-    'watchlist__app.apps.WatchlistAppConfig',
+    'watchlist.apps.WatchlistAppConfig',
     
     # Third Party Libraries
     'rest_framework',

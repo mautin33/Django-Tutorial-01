@@ -1,4 +1,14 @@
+import uuid 
+
 from django.core.paginator import Paginator as django_core_paginator
+
+
+def is_valid_uuid(string):
+    try:
+        uuid_object = uuid.UUID(string)
+        return str(uuid_object) == string
+    except ValueError:
+        return False
 
 class Paginator:
 
