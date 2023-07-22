@@ -1,6 +1,8 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 
 from django.utils import timezone
 
@@ -20,36 +22,43 @@ from watchlist.serializers import (
     StreamPlatformSerializer,
     ReviewSerializer
 )
-
+from watchlist.permissions import (
+    IsAdminOrReadOnly,
+    ReviewUserOrReadOnly
+) 
 
 class ReviewAV(APIView):
     serializer_class = ReviewSerializer
+    permission_classes = [ReviewUserOrReadOnly]
     
     def get_review(self, review_id):
                 
         try:
-            return Review.objects.filter(is_active=True).get(id=review_id)
+            return Review.objects.filter(is_active=True, id=review_id)
         except Review.DoesNotExist:
             return None 
 
     
     def get_object(self, watch_list_id):
         try:
-            return Review.objects.filter(is_active=True).filter(watch_list=watch_list_id)
+            return Review.objects.filter(is_active=True, watch_list=watch_list_id)
         except Review.DoesNotExist:
             return None
         
         
     def get(self, request, *args, **kwargs):
+        """
+            
+        """
         query_params = request.GET
         watch_list_id = query_params.get("id", False)
         validate_id = is_valid_uuid(watch_list_id) if watch_list_id else False
 
         if watch_list_id and validate_id:
-            reviews_qs = self.get_object(watch_list_id)
+            reviews = self.get_object(watch_list_id)
             
-            if reviews_qs is not None:
-                serializer = self.serializer_class(instance=reviews_qs, many=True)
+            if reviews is not None:
+                serializer = self.serializer_class(instance=reviews, many=True)
                 data = {
                     "data": serializer.data,
                     "status": status.HTTP_200_OK
@@ -72,19 +81,27 @@ class ReviewAV(APIView):
         query_params = request.GET
         watch_list_id = query_params.get("id", False)
         validate_id = is_valid_uuid(watch_list_id) if watch_list_id else False
+        review_user = request.user
     
         if watch_list_id and validate_id:
           
             try:
-                movie = WatchList.objects.get(id=watch_list_id)
+                watch_list = WatchList.objects.get(id=watch_list_id)
             except WatchList.DoesNotExist:
                 return None 
-              
-            if movie is not None: 
+            
+             
+            if watch_list is not None: 
+                            
+                review_qs = Review.objects.filter(watch_list=watch_list, review_user=review_user)
+                
+                if review_qs.exists():
+                    raise ValidationError("You have reviewed this movie!!!")
+                
                 serializer = self.serializer_class(data=request.data)
-
+            
                 if serializer.is_valid():
-                    serializer.save(watch_list=movie)
+                    serializer.save(watch_list=watch_list, review_user=review_user)
                     data = {
                         "data": serializer.data,
                         "message": "Review Successfully Created!!!",
